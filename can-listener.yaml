@@ -14,8 +14,10 @@ logger:
   level: DEBUG
 
 api:
+
 ota:
-  password: "ota-password"
+  - platform: esphome
+    password: "ota-password"
 
 canbus:
   - platform: esp32_can
