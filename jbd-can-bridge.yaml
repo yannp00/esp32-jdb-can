@@ -149,9 +149,9 @@ interval:
           int16_t i_raw = (int16_t)(current * 10);    // 0.1A/LSB (négatif = charge)
           int16_t t_raw = (int16_t)(temp * 10);       // 0.1°C/LSB
           std::vector<uint8_t> f356 = {
-            (uint8_t)(v_raw & 0xFF), (uint8_t)(v_raw >> 8),
-            (uint8_t)(i_raw & 0xFF), (uint8_t)(i_raw >> 8),
-            (uint8_t)(t_raw & 0xFF), (uint8_t)(t_raw >> 8)
+            (uint8_t)(v_raw & 0xFF), (uint8_t)((uint16_t)v_raw >> 8),
+            (uint8_t)(i_raw & 0xFF), (uint8_t)((uint16_t)i_raw >> 8),
+            (uint8_t)(t_raw & 0xFF), (uint8_t)((uint16_t)t_raw >> 8)
           };
           id(can_bus).send_data(0x356, false, false, f356);
 
