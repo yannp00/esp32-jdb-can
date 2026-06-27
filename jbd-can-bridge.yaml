@@ -106,13 +106,6 @@ sensor:
       name: "BMS Errors"
       id: bms_errors
 
-binary_sensor:
-  - platform: jbd_bms
-    jbd_bms_id: bms0
-    charging_mosfet_enabled:
-      name: "Charging MOSFET"
-    discharging_mosfet_enabled:
-      name: "Discharging MOSFET"
 
 canbus:
   - platform: esp32_can
