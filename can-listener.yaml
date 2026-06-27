@@ -1,0 +1,60 @@
+esphome:
+  name: can-listener
+
+esp32:
+  board: esp32dev
+  framework:
+    type: arduino
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+
+logger:
+  level: DEBUG
+
+api:
+ota:
+  password: "ota-password"
+
+canbus:
+  - platform: esp32_can
+    tx_pin: GPIO5
+    rx_pin: GPIO4
+    can_id: 0
+    bit_rate: 500kbps
+    id: can_listen
+    on_frame:
+      - can_id: 0x351
+        then:
+          - lambda: |-
+              ESP_LOGI("can", "0x351: CVL=%.1fV CCL=%dA DCL=%dA",
+                (x[0] | (x[1]<<8)) * 0.1f,
+                (int)(x[2] | (x[3]<<8)),
+                (int)(x[4] | (x[5]<<8)));
+      - can_id: 0x355
+        then:
+          - lambda: |-
+              ESP_LOGI("can", "0x355: SOC=%d%% SOH=%d%%",
+                (int)(x[0] | (x[1]<<8)),
+                (int)(x[2] | (x[3]<<8)));
+      - can_id: 0x356
+        then:
+          - lambda: |-
+              ESP_LOGI("can", "0x356: V=%.2fV I=%.1fA T=%.1f°C",
+                (int16_t)(x[0] | (x[1]<<8)) * 0.01f,
+                (int16_t)(x[2] | (x[3]<<8)) * 0.1f,
+                (int16_t)(x[4] | (x[5]<<8)) * 0.1f);
+      - can_id: 0x359
+        then:
+          - lambda: |-
+              ESP_LOGI("can", "0x359: alarms=%02X %02X", x[0], x[1]);
+      - can_id: 0x35C
+        then:
+          - lambda: |-
+              ESP_LOGI("can", "0x35C: flags=%02X", x[0]);
+      - can_id: 0x35E
+        then:
+          - lambda: |-
+              ESP_LOGI("can", "0x35E: manufacturer=%c%c%c%c%c",
+                x[0],x[1],x[2],x[3],x[4]);

@@ -96,3 +96,89 @@ jbd_bms:
     errors_bitmask:
       name: "BMS Errors"
       id: bms_errors
+
+canbus:
+  - platform: esp32_can
+    tx_pin: GPIO5
+    rx_pin: GPIO4
+    can_id: 0
+    bit_rate: 500kbps
+    id: can_bus
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          // Vérifier que les données BMS sont valides
+          float soc     = id(bms_soc).state;
+          float voltage = id(bms_voltage).state;
+          float current = id(bms_current).state;
+          float temp    = id(bms_temp1).state;
+          float errors  = id(bms_errors).state;
+
+          if (isnan(soc) || isnan(voltage)) {
+            ESP_LOGW("pylontech", "Données BMS invalides, trames CAN non émises");
+            return;
+          }
+
+          // --- 0x351 : Limites tension/courant ---
+          // CVL=58.4V (584×0.1V), CCL=50A, DCL=100A, DVL=44.8V (448×0.1V)
+          uint16_t cvl = 584;
+          uint16_t ccl = 50;
+          uint16_t dcl = 100;
+          uint16_t dvl = 448;
+          std::vector<uint8_t> f351 = {
+            (uint8_t)(cvl & 0xFF), (uint8_t)(cvl >> 8),
+            (uint8_t)(ccl & 0xFF), (uint8_t)(ccl >> 8),
+            (uint8_t)(dcl & 0xFF), (uint8_t)(dcl >> 8),
+            (uint8_t)(dvl & 0xFF), (uint8_t)(dvl >> 8)
+          };
+          id(can_bus).send_data(0x351, false, false, f351);
+
+          // --- 0x355 : SOC / SOH ---
+          uint16_t soc_i = (uint16_t)soc;
+          uint16_t soh_i = 100;  // JBD ne calcule pas le SOH
+          std::vector<uint8_t> f355 = {
+            (uint8_t)(soc_i & 0xFF), (uint8_t)(soc_i >> 8),
+            (uint8_t)(soh_i & 0xFF), (uint8_t)(soh_i >> 8)
+          };
+          id(can_bus).send_data(0x355, false, false, f355);
+
+          // --- 0x356 : Tension / Courant / Température ---
+          int16_t v_raw = (int16_t)(voltage * 100);   // 0.01V/LSB
+          int16_t i_raw = (int16_t)(current * 10);    // 0.1A/LSB (négatif = charge)
+          int16_t t_raw = (int16_t)(temp * 10);       // 0.1°C/LSB
+          std::vector<uint8_t> f356 = {
+            (uint8_t)(v_raw & 0xFF), (uint8_t)(v_raw >> 8),
+            (uint8_t)(i_raw & 0xFF), (uint8_t)(i_raw >> 8),
+            (uint8_t)(t_raw & 0xFF), (uint8_t)(t_raw >> 8)
+          };
+          id(can_bus).send_data(0x356, false, false, f356);
+
+          // --- 0x359 : Alarmes et protections ---
+          // Bits mappés depuis errors_bitmask JBD
+          // Bit 0x0004 = overvoltage, 0x0008 = undervoltage, 0x0100 = overcurrent charge
+          uint32_t err = (uint32_t)errors;
+          uint8_t alarm0 = 0x00;
+          uint8_t alarm1 = 0x00;
+          if (err & 0x0001) alarm0 |= 0x04;  // cell overvoltage → high voltage alarm
+          if (err & 0x0002) alarm0 |= 0x08;  // cell undervoltage → low voltage alarm
+          if (err & 0x0004) alarm1 |= 0x01;  // pack overvoltage
+          if (err & 0x0008) alarm1 |= 0x02;  // pack undervoltage
+          if (err & 0x0100) alarm1 |= 0x04;  // overcurrent charge
+          std::vector<uint8_t> f359 = {alarm0, alarm1, 0x00, 0x00};
+          id(can_bus).send_data(0x359, false, false, f359);
+
+          // --- 0x35C : Flags demande de charge ---
+          // 0xC0 = demande charge ET décharge autorisées
+          uint8_t req = 0xC0;
+          if (err != 0) req = 0x00;  // si alarme active, couper les demandes
+          std::vector<uint8_t> f35c = {req, 0x00};
+          id(can_bus).send_data(0x35C, false, false, f35c);
+
+          // --- 0x35E : Nom fabricant "PYLON   " ---
+          std::vector<uint8_t> f35e = {'P','Y','L','O','N',' ',' ',' '};
+          id(can_bus).send_data(0x35E, false, false, f35e);
+
+          ESP_LOGD("pylontech", "CAN: SOC=%.0f%% V=%.2fV I=%.1fA T=%.1f°C",
+                   soc, voltage, current, temp);
