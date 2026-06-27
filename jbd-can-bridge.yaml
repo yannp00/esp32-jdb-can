@@ -23,4 +23,5 @@ logger:
 api:
 
 ota:
-  password: "ota-password"
+  - platform: esphome
+    password: "ota-password"
