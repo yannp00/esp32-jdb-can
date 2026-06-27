@@ -25,3 +25,74 @@ api:
 ota:
   - platform: esphome
     password: "ota-password"
+
+uart:
+  - id: jbd_uart
+    tx_pin: GPIO17
+    rx_pin: GPIO16
+    baud_rate: 9600
+
+external_components:
+  - source: github://syssi/esphome-jbd-bms@main
+
+jbd_bms:
+  - platform: jbd_bms
+    uart_id: jbd_uart
+    id: bms0
+    state_of_charge:
+      name: "BMS SOC"
+      id: bms_soc
+    total_voltage:
+      name: "BMS Voltage"
+      id: bms_voltage
+    current:
+      name: "BMS Current"
+      id: bms_current
+    power:
+      name: "BMS Power"
+    temperature_1:
+      name: "BMS Temperature 1"
+      id: bms_temp1
+    temperature_2:
+      name: "BMS Temperature 2"
+      id: bms_temp2
+    cell_voltage_1:
+      name: "Cell 1"
+      id: cell_v1
+    cell_voltage_2:
+      name: "Cell 2"
+    cell_voltage_3:
+      name: "Cell 3"
+    cell_voltage_4:
+      name: "Cell 4"
+    cell_voltage_5:
+      name: "Cell 5"
+    cell_voltage_6:
+      name: "Cell 6"
+    cell_voltage_7:
+      name: "Cell 7"
+    cell_voltage_8:
+      name: "Cell 8"
+    cell_voltage_9:
+      name: "Cell 9"
+    cell_voltage_10:
+      name: "Cell 10"
+    cell_voltage_11:
+      name: "Cell 11"
+    cell_voltage_12:
+      name: "Cell 12"
+    cell_voltage_13:
+      name: "Cell 13"
+    cell_voltage_14:
+      name: "Cell 14"
+    cell_voltage_15:
+      name: "Cell 15"
+    cell_voltage_16:
+      name: "Cell 16"
+    charging_mosfet_enabled:
+      name: "Charging MOSFET"
+    discharging_mosfet_enabled:
+      name: "Discharging MOSFET"
+    errors_bitmask:
+      name: "BMS Errors"
+      id: bms_errors
