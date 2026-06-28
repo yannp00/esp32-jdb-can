@@ -10,8 +10,6 @@ The ESP32 replaces the small JBD Bluetooth module. A parallel connection is like
 
 - ESP32 (esp32dev)
 - SN65HVD230 CAN transceiver module (VD230), powered at **3.3 V**
-- Victron Cerbo GX
-- Safiery Scotty AI
 
 ## Wiring
 
@@ -49,16 +47,7 @@ UART: 9600 baud, polled every 5 s.
 
 CAN bus requires a 120 Ω termination resistor at **each end**.
 
-The VD230 module used here includes a built-in termination resistor, enabled by default via a jumper. The Cerbo provides its own termination via a Victron RJ45 terminator plugged into the other VE.Can 2 port.
-
-> ⚠️ **Do not use both simultaneously without measuring.** Two 120 Ω resistors in parallel = 60 Ω (correct). A third resistor (module jumper + Cerbo terminator + another) drops the impedance well below that and prevents any valid CAN bit from passing (measured at 4–5 Ω in this project).
->
-> **Verification**: measure resistance between CANH and CANL with everything powered off — expect **~60 Ω**.
-
-## Cerbo GX Configuration
-
-- Port: **VE.Can 2**
-- Mode: **CAN-bus BMS LV (500 kbit/s)**
+The VD230 module I used includes a built-in termination resistor.
 
 ## CAN Frames Sent
 
