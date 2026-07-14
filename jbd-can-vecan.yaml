@@ -129,6 +129,22 @@ interval:
           std::vector<uint8_t> f35a = {a0, a1, a2, 0x00, 0x00, 0x00, 0x00, 0x00};
           id(can_bus).send_data(0x35A, false, false, f35a);
 
+          // --- 0x373 : Min/Max tension cellule (mV) + température (Kelvin) ---
+          uint16_t min_cell_mv = (uint16_t)(min_cell_v * 1000.0f);
+          uint16_t max_cell_mv = (uint16_t)(max_cell_v * 1000.0f);
+          float temp2 = id(bms_temp2).state;
+          float min_temp_c = temp < temp2 ? temp : temp2;
+          float max_temp_c = temp > temp2 ? temp : temp2;
+          uint16_t min_temp_k = (uint16_t)(min_temp_c + 273.0f);
+          uint16_t max_temp_k = (uint16_t)(max_temp_c + 273.0f);
+          std::vector<uint8_t> f373 = {
+            (uint8_t)(min_cell_mv & 0xFF), (uint8_t)(min_cell_mv >> 8),
+            (uint8_t)(max_cell_mv & 0xFF), (uint8_t)(max_cell_mv >> 8),
+            (uint8_t)(min_temp_k & 0xFF),  (uint8_t)(min_temp_k >> 8),
+            (uint8_t)(max_temp_k & 0xFF),  (uint8_t)(max_temp_k >> 8)
+          };
+          id(can_bus).send_data(0x373, false, false, f373);
+
           ESP_LOGD("recbms", "CAN: SOC=%.0f%% V=%.2fV I=%.1fA maxCell=%.3fV minCell=%.3fV CCL=%.1fA DCL=%.1fA",
                    soc, voltage, current, max_cell_v, min_cell_v,
                    ccl / 10.0f, dcl / 10.0f);
