@@ -341,9 +341,12 @@ behavior change, verified via esphome config diff."
 
 - [ ] **Step 1: Write the scaffold**
 
+Note : ESPHome rejette les noms d'appareil contenant des majuscules (validateur `name`),
+d'où `jbd_battery` en minuscules au lieu de la casse initialement demandée (`JBD_BATTERY`).
+
 ```yaml
 esphome:
-  name: "JBD_BATTERY"
+  name: "jbd_battery"
 
 packages:
   common: !include common.yaml

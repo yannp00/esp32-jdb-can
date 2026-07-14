@@ -51,8 +51,11 @@ Chaque fichier top-level (`jbd-can-bridge.yaml`, `jbd-can-vecan.yaml`) inclut `c
 
 ```yaml
 esphome:
-  name: "JBD_BATTERY"
+  name: "jbd_battery"
 ```
+
+Note : ESPHome rejette les noms d'appareil contenant des majuscules (validateur `name`),
+d'où `jbd_battery` en minuscules au lieu de la casse initialement demandée (`JBD_BATTERY`).
 
 ### Bus CAN
 
