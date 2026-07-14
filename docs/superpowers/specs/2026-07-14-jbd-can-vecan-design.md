@@ -92,8 +92,8 @@ substitutions:
 | 0x351 | CVL, CCL, DCL, DVL | CCL/DCL **dynamiques** (voir ci-dessous), 0.1V/0.1A LSB, little-endian |
 | 0x355 | SOC, SOH | uint16, 1%/LSB |
 | 0x356 | Tension, Courant, Température | int16, 0.01V / 0.1A / 0.1°C LSB |
-| 0x35A | Alarmes/warnings | encodage bit-paire REC (`10`=actif, `01`=inactif), remplace 0x359 |
-| 0x373 | Min/Max tension cellule | calculé sur `cell_voltage_1`..`cell_voltage_16`, uint16 |
+| 0x35A | Alarmes/warnings | bits dédiés par condition sur 3 octets (voir détail plus bas), remplace 0x359 |
+| 0x373 | Min/Max tension cellule + température | uint16 little-endian, cellule en **mV** (1 mV/LSB), température en **Kelvin entier** |
 | 0x35E | Nom | `"JBD_BATT"` (8 car. ASCII, troncature de "JBD_BATTERY") |
 
 `0x35C` (flags demande charge/décharge, spécifique à la convention Pylontech) est **retiré** dans cette
@@ -131,10 +131,23 @@ sinon                                                                       → 
 
 ### Alarmes 0x35A
 
-Réutilise le même `errors_bitmask` JBD que l'existant (mapping bit à bit vers les catégories
-surtension/sous-tension/surintensité/surtempérature), mais remappé vers l'encodage bit-paire REC
-(2 bits par condition : `10`=actif, `01`=OK) au lieu du bitmask simple utilisé par 0x359 dans
-`jbd-can-bridge.yaml`.
+Référence de structure confirmée par une implémentation open source dédiée au JBD-over-CAN
+([`lltjbd_can.py`, projet dbus-serialbattery](https://github.com/mr-manuel/venus-os_dbus-serialbattery/blob/master/dbus-serialbattery/bms/lltjbd_can.py)) :
+octets 0-3 = alarmes (bit=1 actif), octets 4-7 = warnings (même position de bit, non utilisés ici —
+le composant `esphome-jbd-bms` n'expose pas de seuil de pré-alarme distinct, seulement les flags de
+déclenchement de protection).
+
+| Octet | Bit | Condition | Source `errors_bitmask` JBD (bit) |
+|---|---|---|---|
+| 0 | 2 | Surtension cellule | 0 (cell_overvoltage) OU 2 (pack_overvoltage) |
+| 0 | 4 | Sous-tension cellule | 1 (cell_undervoltage) OU 3 (pack_undervoltage) |
+| 0 | 6 | Surtempérature | 6 (discharge_overtemperature) |
+| 1 | 0 | Sous-température | 7 (discharge_undertemperature) |
+| 1 | 2 | Surtempérature charge | 4 (charge_overtemperature) |
+| 1 | 4 | Sous-température charge | 5 (charge_undertemperature) |
+| 1 | 6 | Surintensité décharge | 9 (discharge_overcurrent) |
+| 2 | 0 | Surintensité charge | 8 (charge_overcurrent) |
+| 2 | 4 | Court-circuit | 10 (short_circuit) |
 
 ## Configuration côté Victron / Scotty
 
