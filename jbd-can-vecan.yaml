@@ -53,4 +53,47 @@ interval:
 
           uint32_t err = (uint32_t)errors;
 
-          ESP_LOGD("recbms", "CAN: SOC=%.0f%% V=%.2fV I=%.1fA", soc, voltage, current);
+          // --- Min/Max tension cellule (réutilisé par 0x351 et 0x373) ---
+          float cell_v[16] = {
+            id(cell_v1).state,  id(cell_v2).state,  id(cell_v3).state,  id(cell_v4).state,
+            id(cell_v5).state,  id(cell_v6).state,  id(cell_v7).state,  id(cell_v8).state,
+            id(cell_v9).state,  id(cell_v10).state, id(cell_v11).state, id(cell_v12).state,
+            id(cell_v13).state, id(cell_v14).state, id(cell_v15).state, id(cell_v16).state,
+          };
+          float min_cell_v = cell_v[0];
+          float max_cell_v = cell_v[0];
+          for (int i = 1; i < 16; i++) {
+            if (cell_v[i] < min_cell_v) min_cell_v = cell_v[i];
+            if (cell_v[i] > max_cell_v) max_cell_v = cell_v[i];
+          }
+
+          // --- 0x351 : Limites tension/courant ---
+          uint16_t cvl = 584;   // 58.4V, cohérent avec cell_taper_end_v (16S × 3.65V)
+          uint16_t dvl = 448;   // 44.8V
+
+          const float charge_current_limit_a = ${charge_current_limit_a};
+          const float discharge_current_limit_a = ${discharge_current_limit_a};
+          const float cell_taper_start_v = ${cell_taper_start_v};
+          const float cell_taper_end_v = ${cell_taper_end_v};
+
+          bool charge_alarm = (err & (1 << 0)) || (err & (1 << 2)) || (err & (1 << 4));
+          bool discharge_alarm = (err & (1 << 1)) || (err & (1 << 3)) || (err & (1 << 6));
+
+          float ccl_ratio = (cell_taper_end_v - max_cell_v) / (cell_taper_end_v - cell_taper_start_v);
+          if (ccl_ratio < 0.0f) ccl_ratio = 0.0f;
+          if (ccl_ratio > 1.0f) ccl_ratio = 1.0f;
+
+          uint16_t ccl = charge_alarm ? 0 : (uint16_t)(charge_current_limit_a * ccl_ratio * 10.0f);
+          uint16_t dcl = discharge_alarm ? 0 : (uint16_t)(discharge_current_limit_a * 10.0f);
+
+          std::vector<uint8_t> f351 = {
+            (uint8_t)(cvl & 0xFF), (uint8_t)(cvl >> 8),
+            (uint8_t)(ccl & 0xFF), (uint8_t)(ccl >> 8),
+            (uint8_t)(dcl & 0xFF), (uint8_t)(dcl >> 8),
+            (uint8_t)(dvl & 0xFF), (uint8_t)(dvl >> 8)
+          };
+          id(can_bus).send_data(0x351, false, false, f351);
+
+          ESP_LOGD("recbms", "CAN: SOC=%.0f%% V=%.2fV I=%.1fA maxCell=%.3fV minCell=%.3fV CCL=%.1fA DCL=%.1fA",
+                   soc, voltage, current, max_cell_v, min_cell_v,
+                   ccl / 10.0f, dcl / 10.0f);
