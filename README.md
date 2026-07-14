@@ -38,6 +38,10 @@ simultaneously on the same ESP32.
   > configured in the JBD Bluetooth app ("Basic Parameters") — the values here must stay strictly
   > below it, since this component cannot read that threshold automatically.
 
+  The CCL taper formula (ramping charge current down between `cell_taper_start_v` and
+  `cell_taper_end_v`) can be re-verified with `python scripts/taper_check.py` whenever these
+  substitutions or the formula itself change.
+
 ## Hardware
 
 - ESP32 (esp32dev)
