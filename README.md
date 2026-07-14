@@ -19,10 +19,20 @@ simultaneously on the same ESP32.
 
 ### jbd-can-vecan.yaml specifics
 
-- **Cerbo GX (if present on the same bus):** set the VE.Can port mode to **"VE.Can & CAN-bus BMS
-  (250kbit/s)"** instead of the dedicated BMS-Can port used by `jbd-can-bridge.yaml`.
 - **Scotty AI:** no configuration needed, auto-detects the REC BMS protocol.
-- **Wiring/termination:** identical to the `jbd-can-bridge.yaml` section above (same GPIO23/GPIO22,
+- **Cerbo GX + Scotty on the same CAN bus:** both must use the **same physical VE.Can
+  port** on the Cerbo, with profile **"VE.Can & CAN-bus BMS (250 kbit/s)"** (not plain
+  `VE.Can`, and not a BMS-only profile). That profile runs both Venus drivers on that
+  interface (`vecan-dbus` for the Scotty/alternator, `can-bus-bms` for the battery).
+  - On a Cerbo with two CAN ports (e.g. MK2), check which port the Scotty cable is on
+    (`Settings → Connectivity → VE.Can port N`). If `can-bus-bms` is only active on the
+    *other* port, the battery never appears even though the Scotty already sees it.
+  - After changing the profile, reboot the Cerbo. You should then see **both** the
+    battery and the Scotty/alternator on the main Device list. The battery often shows
+    on the home screen / Device list, not only under the VE.Can port device list.
+  - Wrong profile symptoms: Scotty alone (plain `VE.Can`) → Cerbo never registers the
+    battery; BMS-only profile → battery appears but Scotty/alternator disappears.
+- **Wiring/termination:** identical to the wiring section below (same GPIO23/GPIO22,
   same RJ45 pins 7/8, same ~60 Ω termination check).
 - **Tunable limits** (`substitutions:` block in `jbd-can-vecan.yaml`):
 
