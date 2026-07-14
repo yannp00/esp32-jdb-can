@@ -6,6 +6,38 @@ Allows JBD BMS data to be used in a Victron Cerbo GX via CAN bus (a Bluetooth co
 
 The ESP32 replaces the small JBD Bluetooth module. A parallel connection is likely also possible if you want to keep the JBD app instead of connecting to the ESP32.
 
+## Two Firmware Variants
+
+This repo builds two independent ESPHome firmwares from the same JBD BMS wiring, sharing
+`common.yaml` for BMS reading. Flash only the one matching your setup — they are not meant to run
+simultaneously on the same ESP32.
+
+| File | CAN bus | Protocol | Use case |
+|------|---------|----------|----------|
+| `jbd-can-bridge.yaml` | 500 kbps, dedicated BMS-Can port | Pylontech-style | Cerbo GX only |
+| `jbd-can-vecan.yaml` | 250 kbps, shared VE.Can port | REC BMS-style | Safiery Scotty AI, with or without a Cerbo GX on the same bus |
+
+### jbd-can-vecan.yaml specifics
+
+- **Cerbo GX (if present on the same bus):** set the VE.Can port mode to **"VE.Can & CAN-bus BMS
+  (250kbit/s)"** instead of the dedicated BMS-Can port used by `jbd-can-bridge.yaml`.
+- **Scotty AI:** no configuration needed, auto-detects the REC BMS protocol.
+- **Wiring/termination:** identical to the `jbd-can-bridge.yaml` section above (same GPIO23/GPIO22,
+  same RJ45 pins 7/8, same ~60 Ω termination check).
+- **Tunable limits** (`substitutions:` block in `jbd-can-vecan.yaml`):
+
+  | Substitution | Default | Meaning |
+  |---|---|---|
+  | `charge_current_limit_a` | 50 | Max charge current (A), full value below `cell_taper_start_v` |
+  | `discharge_current_limit_a` | 100 | Max discharge current (A) |
+  | `cell_taper_start_v` | 3.45 | Cell voltage where CCL starts ramping down |
+  | `cell_taper_end_v` | 3.65 | Cell voltage where CCL reaches 0 (keep below your BMS's real OVP threshold) |
+
+  > These are generic LiFePO4 defaults, not your battery's real limits. Cross-check
+  > `charge_current_limit_a` / `discharge_current_limit_a` against the OCC/OCD threshold actually
+  > configured in the JBD Bluetooth app ("Basic Parameters") — the values here must stay strictly
+  > below it, since this component cannot read that threshold automatically.
+
 ## Hardware
 
 - ESP32 (esp32dev)
