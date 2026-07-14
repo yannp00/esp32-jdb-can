@@ -1,5 +1,5 @@
 esphome:
-  name: jbd-can-vecan
+  name: jbd_battery
 
 packages:
   common: !include common.yaml
