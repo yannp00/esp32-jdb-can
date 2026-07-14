@@ -145,6 +145,10 @@ interval:
           };
           id(can_bus).send_data(0x373, false, false, f373);
 
+          // --- 0x35E : Nom "JBD_BATT" (8 caractères, troncature de JBD_BATTERY) ---
+          std::vector<uint8_t> f35e = {'J','B','D','_','B','A','T','T'};
+          id(can_bus).send_data(0x35E, false, false, f35e);
+
           ESP_LOGD("recbms", "CAN: SOC=%.0f%% V=%.2fV I=%.1fA maxCell=%.3fV minCell=%.3fV CCL=%.1fA DCL=%.1fA",
                    soc, voltage, current, max_cell_v, min_cell_v,
                    ccl / 10.0f, dcl / 10.0f);
