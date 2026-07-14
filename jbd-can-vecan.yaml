@@ -1,0 +1,56 @@
+esphome:
+  name: jbd-can-vecan
+
+packages:
+  common: !include common.yaml
+
+substitutions:
+  charge_current_limit_a: "50"
+  discharge_current_limit_a: "100"
+  cell_taper_start_v: "3.45"
+  cell_taper_end_v: "3.65"
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "jbd-can-vecan"
+    password: "jbd-can-vecan"
+
+canbus:
+  - platform: esp32_can
+    tx_pin: GPIO23
+    rx_pin: GPIO22
+    can_id: 0
+    bit_rate: 250kbps
+    id: can_bus
+    on_frame:
+      - can_id: 0x000
+        can_id_mask: 0x000
+        then:
+          - lambda: |-
+              ESP_LOGI("canrx", "Frame reçue id=0x%03X len=%d", can_id, x.size());
+
+interval:
+  - interval: 1s
+    then:
+      - lambda: |-
+          // Watchdog: données BMS
+          float soc     = id(bms_soc).state;
+          float voltage = id(bms_voltage).state;
+          float current = id(bms_current).state;
+          float errors  = id(bms_errors).state;
+
+          if (isnan(soc) || isnan(voltage)) {
+            ESP_LOGW("recbms", "Données BMS invalides, trames CAN non émises");
+            return;
+          }
+
+          if (id(last_bms_update_ms) > 0 && (millis() - id(last_bms_update_ms) > 10000)) {
+            ESP_LOGW("recbms", "BMS silencieux depuis >10s, trames CAN suspendues");
+            return;
+          }
+
+          uint32_t err = (uint32_t)errors;
+
+          ESP_LOGD("recbms", "CAN: SOC=%.0f%% V=%.2fV I=%.1fA", soc, voltage, current);
