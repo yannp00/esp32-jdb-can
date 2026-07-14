@@ -133,6 +133,7 @@ interval:
           uint16_t min_cell_mv = (uint16_t)(min_cell_v * 1000.0f);
           uint16_t max_cell_mv = (uint16_t)(max_cell_v * 1000.0f);
           float temp2 = id(bms_temp2).state;
+          if (isnan(temp2)) temp2 = temp;  // capteur temp2 absent sur certains BMS JBD
           float min_temp_c = temp < temp2 ? temp : temp2;
           float max_temp_c = temp > temp2 ? temp : temp2;
           uint16_t min_temp_k = (uint16_t)(min_temp_c + 273.0f);
