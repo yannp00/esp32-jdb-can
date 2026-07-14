@@ -72,13 +72,18 @@ canbus:
 substitutions:
   charge_current_limit_a: "50"
   discharge_current_limit_a: "100"
+  cell_taper_start_v: "3.45"   # début de réduction douce du CCL (≈ 55.2V pack 16S)
+  cell_taper_end_v: "3.65"     # CCL=0 (≈ 58.4V pack 16S, cohérent avec CVL)
 ```
 
-> Ces valeurs doivent rester **strictement inférieures** au seuil de protection surintensité (OCC/OCD)
-> réellement configuré dans le BMS JBD (visible dans l'app Bluetooth JBD, section "Basic Parameters" /
-> "Paramètres de base"). Le composant `esphome-jbd-bms` ne permet pas de lire ce seuil automatiquement
-> — seuls des compteurs de déclenchement et des flags binaires de protection sont exposés, jamais la
-> valeur en ampères programmée dans le BMS.
+> Ces valeurs sont des repères génériques pour du LiFePO4 16S, **à confirmer contre le matériel réel** :
+> - `charge_current_limit_a` / `discharge_current_limit_a` doivent rester **strictement inférieures**
+>   au seuil de protection surintensité (OCC/OCD) réellement configuré dans le BMS JBD (app Bluetooth
+>   JBD, "Basic Parameters"). Le composant `esphome-jbd-bms` ne lit pas ce seuil automatiquement —
+>   seuls des compteurs de déclenchement et des flags binaires sont exposés, jamais la valeur en ampères.
+> - `cell_taper_end_v` doit rester **en dessous** du seuil OVP réel du BMS, sinon la protection
+>   matérielle coupe avant que le tapering CAN ait fini son travail. 3.65V/cellule correspond au
+>   `cvl=584` (58.4V pack) déjà utilisé dans `jbd-can-bridge.yaml`.
 
 ### Trames CAN émises (1 Hz)
 
@@ -96,12 +101,32 @@ variante — absent des IDs REC documentés. Le pilotage passe uniquement par CC
 
 ### CCL/DCL dynamiques
 
-Réutilise `errors_bitmask` déjà lu par `common.yaml` :
+**Important — comportement Scotty confirmé par la doc Safiery** : *"where a Charge Current Limit and
+Charge Voltage Limit is communicated, these values override any programming values in Scotty. This
+means the BMS takes control of the charging profile transitions."* Autrement dit, quand une source CAN
+publie CCL/CVL, **c'est elle qui pilote la transition de fin de charge**, pas le Scotty via sa propre
+tension configurée. Un CCL fixe qui tombe brutalement à 0 provoquerait donc une coupure nette plutôt
+qu'une transition douce — d'où le tapering ci-dessous.
+
+**DCL** : zeroing simple sur alarme, réutilise `errors_bitmask` déjà lu par `common.yaml` :
 
 ```
-si (surtension pack OU surtension cellule OU surtempérature charge) → CCL = 0
 si (sous-tension pack OU sous-tension cellule OU surtempérature décharge) → DCL = 0
-sinon → CCL = charge_current_limit_a, DCL = discharge_current_limit_a
+sinon → DCL = discharge_current_limit_a
+```
+
+**CCL** : combine un tapering par tension de cellule (transition douce en fin de charge) et un zeroing
+immédiat sur alarme (filet de sécurité en cas de déclenchement réel) :
+
+```
+max_cell_v = max(cell_voltage_1..16)
+
+si (surtension pack OU surtension cellule OU surtempérature charge)      → CCL = 0   [alarme, prioritaire]
+sinon si max_cell_v < cell_taper_start_v                                  → CCL = charge_current_limit_a
+sinon si max_cell_v >= cell_taper_end_v                                   → CCL = 0
+sinon                                                                       → CCL = charge_current_limit_a
+                                                                                × (cell_taper_end_v - max_cell_v)
+                                                                                / (cell_taper_end_v - cell_taper_start_v)
 ```
 
 ### Alarmes 0x35A
@@ -138,6 +163,6 @@ charge cohérent, arrêt si CCL retombe à 0 lors d'un test de déclenchement d'
 - Lecture réelle du seuil OCC/OCD programmé dans le BMS JBD (non exposé par le composant ESPHome
   utilisé) — les limites restent des constantes réglables en substitution, à fixer manuellement sous
   le seuil réel.
-- Tapering progressif du courant de charge à l'approche de la tension max (CV) — le Scotty gère déjà
-  sa propre terminaison de charge par tension, indépendamment du SOC.
+- Tapering du DCL (courant de décharge) à l'approche de la tension basse — seul un zeroing simple sur
+  alarme est prévu pour la décharge.
 - Émulation d'autres protocoles de la liste Scotty (Lynx BMS, SIMP BMS, etc.).
