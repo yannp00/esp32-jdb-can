@@ -24,16 +24,17 @@ canbus:
     tx_pin: GPIO5
     rx_pin: GPIO4
     can_id: 0
-    bit_rate: 500kbps
+    bit_rate: 250kbps
     id: can_listen
     on_frame:
       - can_id: 0x351
         then:
           - lambda: |-
-              ESP_LOGI("can", "0x351: CVL=%.1fV CCL=%dA DCL=%dA",
+              ESP_LOGI("can", "0x351: CVL=%.1fV CCL=%.1fA DCL=%.1fA DVL=%.1fV",
                 (x[0] | (x[1]<<8)) * 0.1f,
-                (int)(x[2] | (x[3]<<8)),
-                (int)(x[4] | (x[5]<<8)));
+                (x[2] | (x[3]<<8)) * 0.1f,
+                (x[4] | (x[5]<<8)) * 0.1f,
+                (x[6] | (x[7]<<8)) * 0.1f);
       - can_id: 0x355
         then:
           - lambda: |-
@@ -47,14 +48,19 @@ canbus:
                 (int16_t)(x[0] | (x[1]<<8)) * 0.01f,
                 (int16_t)(x[2] | (x[3]<<8)) * 0.1f,
                 (int16_t)(x[4] | (x[5]<<8)) * 0.1f);
-      - can_id: 0x359
+      - can_id: 0x35A
         then:
           - lambda: |-
-              ESP_LOGI("can", "0x359: alarms=%02X %02X", x[0], x[1]);
-      - can_id: 0x35C
+              ESP_LOGI("can", "0x35A: alarms=%02X %02X %02X warnings=%02X %02X %02X",
+                x[0], x[1], x[2], x[4], x[5], x[6]);
+      - can_id: 0x373
         then:
           - lambda: |-
-              ESP_LOGI("can", "0x35C: flags=%02X", x[0]);
+              ESP_LOGI("can", "0x373: minCell=%.3fV maxCell=%.3fV minTemp=%dK maxTemp=%dK",
+                (x[0] | (x[1]<<8)) / 1000.0f,
+                (x[2] | (x[3]<<8)) / 1000.0f,
+                (int)(x[4] | (x[5]<<8)),
+                (int)(x[6] | (x[7]<<8)));
       - can_id: 0x35E
         then:
           - lambda: |-
