@@ -94,6 +94,27 @@ interval:
           };
           id(can_bus).send_data(0x351, false, false, f351);
 
+          // --- 0x355 : SOC / SOH ---
+          uint16_t soc_i = (uint16_t)soc;
+          uint16_t soh_i = 100;  // JBD ne calcule pas le SOH
+          std::vector<uint8_t> f355 = {
+            (uint8_t)(soc_i & 0xFF), (uint8_t)(soc_i >> 8),
+            (uint8_t)(soh_i & 0xFF), (uint8_t)(soh_i >> 8)
+          };
+          id(can_bus).send_data(0x355, false, false, f355);
+
+          // --- 0x356 : Tension / Courant / Température ---
+          float temp = id(bms_temp1).state;
+          int16_t v_raw = (int16_t)(voltage * 100);
+          int16_t i_raw = (int16_t)(current * 10);
+          int16_t t_raw = (int16_t)(temp * 10);
+          std::vector<uint8_t> f356 = {
+            (uint8_t)(v_raw & 0xFF), (uint8_t)((uint16_t)v_raw >> 8),
+            (uint8_t)(i_raw & 0xFF), (uint8_t)((uint16_t)i_raw >> 8),
+            (uint8_t)(t_raw & 0xFF), (uint8_t)((uint16_t)t_raw >> 8)
+          };
+          id(can_bus).send_data(0x356, false, false, f356);
+
           ESP_LOGD("recbms", "CAN: SOC=%.0f%% V=%.2fV I=%.1fA maxCell=%.3fV minCell=%.3fV CCL=%.1fA DCL=%.1fA",
                    soc, voltage, current, max_cell_v, min_cell_v,
                    ccl / 10.0f, dcl / 10.0f);
