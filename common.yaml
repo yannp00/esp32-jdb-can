@@ -1,0 +1,112 @@
+esp32:
+  board: esp32dev
+  framework:
+    type: esp-idf
+
+captive_portal:
+
+web_server:
+  port: 80
+
+logger:
+
+api:
+
+ota:
+  - platform: esphome
+    password: "ota-password"
+
+globals:
+  - id: last_bms_update_ms
+    type: uint32_t
+    restore_value: false
+    initial_value: '0'
+
+uart:
+  - id: jbd_uart
+    tx_pin: GPIO17
+    rx_pin: GPIO16
+    baud_rate: 9600
+
+external_components:
+  - source: github://syssi/esphome-jbd-bms@main
+
+jbd_bms:
+  - id: bms0
+    uart_id: jbd_uart
+    update_interval: 5s
+
+sensor:
+  - platform: jbd_bms
+    jbd_bms_id: bms0
+    state_of_charge:
+      name: "BMS SOC"
+      id: bms_soc
+    total_voltage:
+      name: "BMS Voltage"
+      id: bms_voltage
+      on_value:
+        then:
+          - lambda: 'id(last_bms_update_ms) = millis();'
+    current:
+      name: "BMS Current"
+      id: bms_current
+    power:
+      name: "BMS Power"
+    temperature_1:
+      name: "BMS Temperature 1"
+      id: bms_temp1
+    temperature_2:
+      name: "BMS Temperature 2"
+      id: bms_temp2
+    cell_voltage_1:
+      name: "Cell 1"
+      id: cell_v1
+    cell_voltage_2:
+      name: "Cell 2"
+      id: cell_v2
+    cell_voltage_3:
+      name: "Cell 3"
+      id: cell_v3
+    cell_voltage_4:
+      name: "Cell 4"
+      id: cell_v4
+    cell_voltage_5:
+      name: "Cell 5"
+      id: cell_v5
+    cell_voltage_6:
+      name: "Cell 6"
+      id: cell_v6
+    cell_voltage_7:
+      name: "Cell 7"
+      id: cell_v7
+    cell_voltage_8:
+      name: "Cell 8"
+      id: cell_v8
+    cell_voltage_9:
+      name: "Cell 9"
+      id: cell_v9
+    cell_voltage_10:
+      name: "Cell 10"
+      id: cell_v10
+    cell_voltage_11:
+      name: "Cell 11"
+      id: cell_v11
+    cell_voltage_12:
+      name: "Cell 12"
+      id: cell_v12
+    cell_voltage_13:
+      name: "Cell 13"
+      id: cell_v13
+    cell_voltage_14:
+      name: "Cell 14"
+      id: cell_v14
+    cell_voltage_15:
+      name: "Cell 15"
+      id: cell_v15
+    cell_voltage_16:
+      name: "Cell 16"
+      id: cell_v16
+    errors_bitmask:
+      name: "BMS Errors"
+      id: bms_errors

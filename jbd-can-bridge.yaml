@@ -1,10 +1,8 @@
 esphome:
   name: jbd-can-bridge
 
-esp32:
-  board: esp32dev
-  framework:
-    type: esp-idf
+packages:
+  common: !include common.yaml
 
 wifi:
   ssid: !secret wifi_ssid
@@ -12,100 +10,6 @@ wifi:
   ap:
     ssid: "jbd-can-bridge"
     password: "jbd-can-bridge"
-
-captive_portal:
-
-web_server:
-  port: 80
-
-logger:
-
-api:
-
-ota:
-  - platform: esphome
-    password: "ota-password"
-
-globals:
-  - id: last_bms_update_ms
-    type: uint32_t
-    restore_value: false
-    initial_value: '0'
-
-uart:
-  - id: jbd_uart
-    tx_pin: GPIO17
-    rx_pin: GPIO16
-    baud_rate: 9600
-
-external_components:
-  - source: github://syssi/esphome-jbd-bms@main
-
-jbd_bms:
-  - id: bms0
-    uart_id: jbd_uart
-    update_interval: 5s
-
-sensor:
-  - platform: jbd_bms
-    jbd_bms_id: bms0
-    state_of_charge:
-      name: "BMS SOC"
-      id: bms_soc
-    total_voltage:
-      name: "BMS Voltage"
-      id: bms_voltage
-      on_value:
-        then:
-          - lambda: 'id(last_bms_update_ms) = millis();'
-    current:
-      name: "BMS Current"
-      id: bms_current
-    power:
-      name: "BMS Power"
-    temperature_1:
-      name: "BMS Temperature 1"
-      id: bms_temp1
-    temperature_2:
-      name: "BMS Temperature 2"
-      id: bms_temp2
-    cell_voltage_1:
-      name: "Cell 1"
-      id: cell_v1
-    cell_voltage_2:
-      name: "Cell 2"
-    cell_voltage_3:
-      name: "Cell 3"
-    cell_voltage_4:
-      name: "Cell 4"
-    cell_voltage_5:
-      name: "Cell 5"
-    cell_voltage_6:
-      name: "Cell 6"
-    cell_voltage_7:
-      name: "Cell 7"
-    cell_voltage_8:
-      name: "Cell 8"
-    cell_voltage_9:
-      name: "Cell 9"
-    cell_voltage_10:
-      name: "Cell 10"
-    cell_voltage_11:
-      name: "Cell 11"
-    cell_voltage_12:
-      name: "Cell 12"
-    cell_voltage_13:
-      name: "Cell 13"
-    cell_voltage_14:
-      name: "Cell 14"
-    cell_voltage_15:
-      name: "Cell 15"
-    cell_voltage_16:
-      name: "Cell 16"
-    errors_bitmask:
-      name: "BMS Errors"
-      id: bms_errors
-
 
 canbus:
   - platform: esp32_can
@@ -145,7 +49,6 @@ interval:
           }
 
           // --- 0x351 : Limites tension/courant ---
-          // CVL=58.4V (584×0.1V), CCL=50A, DCL=100A, DVL=44.8V (448×0.1V)
           uint16_t cvl = 584;
           uint16_t ccl = 50;
           uint16_t dcl = 100;
@@ -160,7 +63,7 @@ interval:
 
           // --- 0x355 : SOC / SOH ---
           uint16_t soc_i = (uint16_t)soc;
-          uint16_t soh_i = 100;  // JBD ne calcule pas le SOH
+          uint16_t soh_i = 100;
           std::vector<uint8_t> f355 = {
             (uint8_t)(soc_i & 0xFF), (uint8_t)(soc_i >> 8),
             (uint8_t)(soh_i & 0xFF), (uint8_t)(soh_i >> 8)
@@ -168,9 +71,9 @@ interval:
           id(can_bus).send_data(0x355, false, false, f355);
 
           // --- 0x356 : Tension / Courant / Température ---
-          int16_t v_raw = (int16_t)(voltage * 100);   // 0.01V/LSB
-          int16_t i_raw = (int16_t)(current * 10);    // 0.1A/LSB (négatif = charge)
-          int16_t t_raw = (int16_t)(temp * 10);       // 0.1°C/LSB
+          int16_t v_raw = (int16_t)(voltage * 100);
+          int16_t i_raw = (int16_t)(current * 10);
+          int16_t t_raw = (int16_t)(temp * 10);
           std::vector<uint8_t> f356 = {
             (uint8_t)(v_raw & 0xFF), (uint8_t)((uint16_t)v_raw >> 8),
             (uint8_t)(i_raw & 0xFF), (uint8_t)((uint16_t)i_raw >> 8),
@@ -179,23 +82,20 @@ interval:
           id(can_bus).send_data(0x356, false, false, f356);
 
           // --- 0x359 : Alarmes et protections ---
-          // Bits mappés depuis errors_bitmask JBD
-          // Bit 0x0004 = overvoltage, 0x0008 = undervoltage, 0x0100 = overcurrent charge
           uint32_t err = (uint32_t)errors;
           uint8_t alarm0 = 0x00;
           uint8_t alarm1 = 0x00;
-          if (err & 0x0001) alarm0 |= 0x04;  // cell overvoltage → high voltage alarm
-          if (err & 0x0002) alarm0 |= 0x08;  // cell undervoltage → low voltage alarm
-          if (err & 0x0004) alarm1 |= 0x01;  // pack overvoltage
-          if (err & 0x0008) alarm1 |= 0x02;  // pack undervoltage
-          if (err & 0x0100) alarm1 |= 0x04;  // overcurrent charge
+          if (err & 0x0001) alarm0 |= 0x04;
+          if (err & 0x0002) alarm0 |= 0x08;
+          if (err & 0x0004) alarm1 |= 0x01;
+          if (err & 0x0008) alarm1 |= 0x02;
+          if (err & 0x0100) alarm1 |= 0x04;
           std::vector<uint8_t> f359 = {alarm0, alarm1, 0x00, 0x00};
           id(can_bus).send_data(0x359, false, false, f359);
 
           // --- 0x35C : Flags demande de charge ---
-          // 0xC0 = demande charge ET décharge autorisées
           uint8_t req = 0xC0;
-          if (err != 0) req = 0x00;  // si alarme active, couper les demandes
+          if (err != 0) req = 0x00;
           std::vector<uint8_t> f35c = {req, 0x00};
           id(can_bus).send_data(0x35C, false, false, f35c);
 
